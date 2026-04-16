@@ -11,10 +11,12 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@babia/uuid-v7": "npm:@jsr/babia__uuid-v7@^0.4.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "mongodb": "7.1",
-    "mongoose": "^9.4.1"
+    "mongoose": "^9.4.1",
+    "uuidv7": "^1.2.1"
   }
 }
