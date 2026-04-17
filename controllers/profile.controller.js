@@ -3,7 +3,6 @@ const Profile = require("../models/profile.model");
 exports.createProfile = async (req, res) => {
   try {
     const { name } = req.body;
-    console.log("1. Name received:", name);
 
     if (name !== undefined && name !== null && typeof name !== "string") {
       return res.status(422).json({
@@ -19,7 +18,6 @@ exports.createProfile = async (req, res) => {
       });
     }
 
-    console.log("2. Checking if name exists in DB...");
     const nameExists = await Profile.findOne({ name: name.toLowerCase() });
     if (nameExists) {
       return res.status(200).json({
@@ -29,7 +27,6 @@ exports.createProfile = async (req, res) => {
       });
     }
 
-    console.log("4. Starting API calls...");
     const genderizeApiCall = fetch(`https://api.genderize.io?name=${name}`)
       .then((res) => {
         if (!res.ok) throw new Error(`Genderize failed: ${res.status}`);
@@ -68,12 +65,7 @@ exports.createProfile = async (req, res) => {
 
     const apiCalls = [genderizeApiCall, agifyApiCall, nationalizeApiCall];
 
-    console.log("5. Waiting for Promise.allSettled...");
     const responses = await Promise.allSettled(apiCalls);
-    console.log(
-      "6. AllSettled complete. Responses:",
-      responses.map((r) => r.status),
-    );
 
     const errors = responses
       .filter((res) => res.status === "rejected")
@@ -97,8 +89,6 @@ exports.createProfile = async (req, res) => {
       .filter((res) => res.status === "fulfilled")
       .map((res) => res.value);
 
-    console.log("Successful responses:", successData);
-    console.error("Errors:", errors);
 
     const profileData = {
       name: name.toLowerCase(),
@@ -141,7 +131,6 @@ exports.createProfile = async (req, res) => {
       data: newProfile,
     });
   } catch (error) {
-    console.error("CATCH BLOCK ERROR:", error);
     res.status(500).json({
       status: "error",
       message: "Failed to create profile",
