@@ -148,3 +148,27 @@ exports.createProfile = async (req, res) => {
     });
   }
 };
+
+exports.getProfileById = async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const profile = await Profile.findById(id)
+    if (!profile) {
+      return res.status(404).json({
+        status: "error",
+        message: "Profile not found"
+      })
+    }
+    
+    res.status(200).json({
+      status: "success",
+      data: profile
+    })
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Failed to get profile"
+    })
+  }
+}
