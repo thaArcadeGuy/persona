@@ -200,8 +200,9 @@ exports.getAllProfiles = async (req, res) => {
       data: profiles,
     });
   } catch (error) {
-    console.error("FULL ERROR:", error);
-    console.error("ERROR STACK:", error.stack);
+    console.error("GET ALL PROFILES ERROR NAME:", error.name);
+    console.error("GET ALL PROFILES ERROR MESSAGE:", error.message);
+    console.error("GET ALL PROFILES ERROR STACK:", error.stack);
     res.status(500).json({
       status: "error",
       message: "Failed to get all profiles",
