@@ -28,40 +28,48 @@ exports.createProfile = async (req, res) => {
       });
     }
 
-    const genderizeApiCall = axios.get(`https://api.genderize.io?name=${name}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`Genderize failed: ${res.status}`);
-        return res.json();
-      })
+    const genderizeApiCall = axios
+      .get(`https://api.genderize.io?name=${name}`)
+      .then((response) => response.data)
       .then((data) => {
         if (data.gender === null || data.count === 0) {
           throw new Error("Genderize returned an invalid response");
         }
         return data;
+      })
+      .catch((err) => {
+        const status = err.response?.status || "Network Error";
+        throw new Error(`Genderize failed: ${status}`);
       });
 
-    const agifyApiCall = axios.get(`https://api.agify.io?name=${name}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`Agify failed: ${res.status}`);
-        return res.json();
-      })
+    const agifyApiCall = axios
+      .get(`https://api.agify.io?name=${name}`)
+      .then((response) => response.data)
       .then((data) => {
         if (data.age === null) {
           throw new Error("Agify returned an invalid response");
         }
         return data;
+      })
+      .catch((err) => {
+        throw new Error(
+          `Agify failed: ${err.response?.status || "Network Error"}`,
+        );
       });
 
-    const nationalizeApiCall = axios.get(`https://api.nationalize.io?name=${name}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`Nationalize failed: ${res.status}`);
-        return res.json();
-      })
+    const nationalizeApiCall = axios
+      .get(`https://api.nationalize.io?name=${name}`)
+      .then((response) => response.data)
       .then((data) => {
         if (!data.country || data.country.length === 0) {
           throw new Error("Nationalize returned an invalid response");
         }
         return data;
+      })
+      .catch((err) => {
+        throw new Error(
+          `Nationalize failed: ${err.response?.status || "Network Error"}`,
+        );
       });
 
     const apiCalls = [genderizeApiCall, agifyApiCall, nationalizeApiCall];
@@ -89,7 +97,6 @@ exports.createProfile = async (req, res) => {
     const successData = responses
       .filter((res) => res.status === "fulfilled")
       .map((res) => res.value);
-
 
     const profileData = {
       name: name.toLowerCase(),
@@ -132,6 +139,8 @@ exports.createProfile = async (req, res) => {
       data: newProfile,
     });
   } catch (error) {
+    console.error("FULL ERROR:", error);
+    console.error("ERROR STACK:", error.stack);
     res.status(500).json({
       status: "error",
       message: "Failed to create profile",
@@ -141,72 +150,74 @@ exports.createProfile = async (req, res) => {
 
 exports.getProfileById = async (req, res) => {
   try {
-    const { id } = req.params
+    const { id } = req.params;
 
-    const profile = await Profile.findOne({_id: id})
+    const profile = await Profile.findOne({ _id: id });
     if (!profile) {
       return res.status(404).json({
         status: "error",
-        message: "Profile not found"
-      })
+        message: "Profile not found",
+      });
     }
 
     res.status(200).json({
       status: "success",
-      data: profile
-    })
+      data: profile,
+    });
   } catch (error) {
     res.status(500).json({
       status: "error",
-      message: "Failed to get profile"
-    })
+      message: "Failed to get profile",
+    });
   }
-}
+};
 
 exports.getAllProfiles = async (req, res) => {
   try {
-    const allowedFilters = ["name", "gender", "age", "country_id", "age_group"]
-    
-    const filter = {}
+    const allowedFilters = ["gender", "age", "country_id", "age_group"];
 
-    allowedFilters.forEach(field => {
+    const filter = {};
+
+    allowedFilters.forEach((field) => {
       if (req.query[field]) {
-        filter[field] = req.query[field]
+        filter[field] = req.query[field];
       }
-    })
+    });
 
     const profiles = await Profile.find(filter)
       .collation({ locale: "en", strength: 2 })
-      .select("id name gender age age_group country_id")
+      .select("id name gender age age_group country_id");
     res.status(200).json({
       status: "success",
       count: profiles.length,
-      data: profiles
-    })
+      data: profiles,
+    });
   } catch (error) {
+    console.error("FULL ERROR:", error);
+    console.error("ERROR STACK:", error.stack);
     res.status(500).json({
       status: "error",
-      message: "Failed to get all profiles"
-    })
+      message: "Failed to get all profiles",
+    });
   }
-}
+};
 
 exports.deleteProfile = async (req, res) => {
   try {
-    const profile = await Profile.findOneAndDelete({_id: req.params.id})
+    const profile = await Profile.findOneAndDelete({ _id: req.params.id });
 
     if (!profile) {
       return res.status(404).json({
         status: "error",
-        message: "Profile not found"
-      })
+        message: "Profile not found",
+      });
     }
 
-    res.status(204).send()
+    res.status(204).send();
   } catch (error) {
     res.status(500).json({
       status: "error",
-      message: "Failed to delete profile"
-    })
+      message: "Failed to delete profile",
+    });
   }
-}
+};
