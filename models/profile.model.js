@@ -1,11 +1,11 @@
 const mongoose = require("mongoose");
-const { generate } = require("@babia/uuid-v7/generate");
+const { uuidv7 } = require("uuidv7");
 
 const profileSchema = new mongoose.Schema(
   {
     _id: { 
       type: String, 
-      default: () => generate() 
+      default: () => uuidv7() 
     },
     name: { 
       type: String, 
