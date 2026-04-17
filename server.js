@@ -5,6 +5,11 @@ const { connectDB } =  require("./config/db")
 
 const PORT = process.env.PORT || 3100
 
-connectDB()
-
-app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`))
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
+  });
+}).catch(err => {
+  console.error("Failed to connect to database:", err);
+  process.exit(1);
+});
