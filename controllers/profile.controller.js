@@ -175,7 +175,16 @@ exports.getProfileById = async (req, res) => {
 
 exports.getAllProfiles = async (req, res) => {
   try {
-    const filter = { ...req.query }
+    const allowedFilters = ["name", "gender", "age", "country_id", "age_group"]
+    
+    const filter = {}
+
+    allowedFilters.forEach(field => {
+      if (req.query[field]) {
+        filter[field] = req.query[field]
+      }
+    })
+
     const profiles = await Profile.find(filter)
       .collation({ locale: "en", strength: 2 })
       .select("id name gender age age_group country_id")
