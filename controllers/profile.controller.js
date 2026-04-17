@@ -150,7 +150,7 @@ exports.createProfile = async (req, res) => {
     console.error("ERROR STACK:", error.stack);
     res.status(500).json({
       status: "error",
-      message: "Failed to create profile",
+      message: error.message || "Failed to get all profiles"
     });
   }
 };
