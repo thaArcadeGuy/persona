@@ -1,3 +1,4 @@
+const axios = require("axios");
 const Profile = require("../models/profile.model");
 
 exports.createProfile = async (req, res) => {
@@ -27,7 +28,7 @@ exports.createProfile = async (req, res) => {
       });
     }
 
-    const genderizeApiCall = fetch(`https://api.genderize.io?name=${name}`)
+    const genderizeApiCall = axios.get(`https://api.genderize.io?name=${name}`)
       .then((res) => {
         if (!res.ok) throw new Error(`Genderize failed: ${res.status}`);
         return res.json();
@@ -39,7 +40,7 @@ exports.createProfile = async (req, res) => {
         return data;
       });
 
-    const agifyApiCall = fetch(`https://api.agify.io?name=${name}`)
+    const agifyApiCall = axios.get(`https://api.agify.io?name=${name}`)
       .then((res) => {
         if (!res.ok) throw new Error(`Agify failed: ${res.status}`);
         return res.json();
@@ -51,7 +52,7 @@ exports.createProfile = async (req, res) => {
         return data;
       });
 
-    const nationalizeApiCall = fetch(`https://api.nationalize.io?name=${name}`)
+    const nationalizeApiCall = axios.get(`https://api.nationalize.io?name=${name}`)
       .then((res) => {
         if (!res.ok) throw new Error(`Nationalize failed: ${res.status}`);
         return res.json();
