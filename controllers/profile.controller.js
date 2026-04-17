@@ -160,7 +160,7 @@ exports.getProfileById = async (req, res) => {
         message: "Profile not found"
       })
     }
-    
+
     res.status(200).json({
       status: "success",
       data: profile
@@ -169,6 +169,25 @@ exports.getProfileById = async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Failed to get profile"
+    })
+  }
+}
+
+exports.getAllProfiles = async (req, res) => {
+  try {
+    const filter = { ...req.query }
+    const profiles = await Profile.find(filter)
+      .collation({ locale: "en", strength: 2 })
+      .select("id name gender age age_group country_id")
+    res.status(200).json({
+      status: "success",
+      count: profiles.length,
+      data: profiles
+    })
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Failed to get all profiles"
     })
   }
 }

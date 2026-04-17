@@ -46,7 +46,7 @@ const profileSchema = new mongoose.Schema(
     versionKey: false,
     toJSON: {
       transform: (doc, ret) => {
-        ret.id = ret.id;
+        ret.id = ret._id;
         delete ret._id;
         return ret;
       },
