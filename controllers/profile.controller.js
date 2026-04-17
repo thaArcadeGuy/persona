@@ -153,7 +153,7 @@ exports.getProfileById = async (req, res) => {
   try {
     const { id } = req.params
 
-    const profile = await Profile.findById(id)
+    const profile = await Profile.findOne({_id: id})
     if (!profile) {
       return res.status(404).json({
         status: "error",
@@ -188,6 +188,26 @@ exports.getAllProfiles = async (req, res) => {
     res.status(500).json({
       status: "error",
       message: "Failed to get all profiles"
+    })
+  }
+}
+
+exports.deleteProfile = async (req, res) => {
+  try {
+    const profile = await Profile.findOneAndDelete({_id: req.params.id})
+
+    if (!profile) {
+      return res.status(404).json({
+        status: "error",
+        message: "Profile not found"
+      })
+    }
+
+    res.status(204).send()
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Failed to delete profile"
     })
   }
 }
