@@ -1,15 +1,16 @@
 require("dotenv").config()
 const app = require("./app")
-const { connectDB } =  require("./config/db")
-
 
 const PORT = process.env.PORT || 3100
 
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-  });
-}).catch(err => {
-  console.error("Failed to connect to database:", err);
-  process.exit(1);
-});
+
+if (process.env.NODE_ENV !== "production") {
+  const { connectDB } = require("./config/db")
+  connectDB().then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running at http://localhost:${PORT}`)
+    })
+  })
+}
+
+module.exports = app
