@@ -21,6 +21,7 @@ exports.createProfile = async (req, res) => {
     }
 
      console.log("2. Checking if name exists in DB...");
+    //TODO:  remove .toLowerCase()
     const nameExists = await Profile.findOne({ name: name.toLowerCase() });
     console.log("3. DB check complete. Exists?", !!nameExists);
     if (nameExists) {
