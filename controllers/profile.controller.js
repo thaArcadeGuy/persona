@@ -189,7 +189,11 @@ exports.getAllProfiles = async (req, res) => {
       min_age,
       max_age,
       min_gender_probability,
-      min_country_probability
+      min_country_probability,
+      sort_by = "created_at",
+      order = "asc",
+      page = 1,
+      limit = 10
     } = req.query
 
     const filter = {};
@@ -218,15 +222,34 @@ exports.getAllProfiles = async (req, res) => {
       };
     }
 
+    // Build sort object
+    const validSortFields = ["age", "created_at", "gender_probability"]
+    const sortField = validSortFields.includes(sort_by) ? sort_by : "created_at"
+    const sort = { [sortField]: order === "desc" ? -1 : 1 }
+
+    // Validate pagination params
+    const pageNum = Math.max(1, Number.parseInt(page) || 1)
+    const limitNum = Math.min(50, Math.max(1, Number.parseInt(limit) || 10))
+
     console.log("Filter object:", filter);
 
     const profiles = await Profile.find(filter)
       .collation({ locale: "en", strength: 2 })
-      .select("id name gender age age_group country_id");
+      .select("id name gender age age_group country_id")
+      .sort(sort)
+      .limit(limitNum)
+      .skip((pageNum -1) * limitNum);
+
+    const total = await Profile.countDocuments(filter)
+      .collation({ locale: "en", strength: 2 })
+      .countDocuments()
+    
     res.status(200).json({
       status: "success",
-      count: profiles.length,
-      data: profiles,
+      page: pageNum,
+      limit: limitNum,
+      total,
+      data: profiles
     });
   } catch (error) {
     console.error("GET ALL PROFILES ERROR NAME:", error.name);
