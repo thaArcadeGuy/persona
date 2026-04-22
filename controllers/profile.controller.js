@@ -22,7 +22,7 @@ exports.createProfile = async (req, res) => {
 
      console.log("2. Checking if name exists in DB...");
     //TODO:  remove .toLowerCase()
-    const nameExists = await Profile.findOne({ name: name.toLowerCase() });
+    const nameExists = await Profile.findOne({ name: name });
     console.log("3. DB check complete. Exists?", !!nameExists);
     if (nameExists) {
       return res.status(200).json({
@@ -191,7 +191,7 @@ exports.getAllProfiles = async (req, res) => {
       min_gender_probability,
       min_country_probability,
       sort_by = "created_at",
-      order = "asc",
+      order = "desc",
       page = 1,
       limit = 10
     } = req.query
@@ -199,24 +199,81 @@ exports.getAllProfiles = async (req, res) => {
     const filter = {};
 
     // Build equality filters
-    if (gender) filter.gender = gender;
-    if (age_group) filter.age_group = age_group;
+    if (gender) {
+      const allowedGender = ["male", "female"]
+      if (!allowedGender.includes(gender.toLowerCase())) {
+        return res.status(422).json({
+          status: "error",
+          message: "Invalid query parameters"
+        })
+      }
+      filter.gender = gender.toLowerCase();
+    };
+
+    if (age_group) {
+      const allowedAgeGroup = ["child", "teenager", "adult", "senior"]
+      if (!allowedAgeGroup.includes(age_group.toLowerCase())) {
+        return res.status(422).json({
+          status: "error",
+          message: "Invalid query parameters"
+        })
+      }
+      filter.age_group = age_group.toLowerCase();
+    };
     if (country_id) filter.country_id = country_id;
 
     // Build range filters
     if (min_age || max_age) {
+      const parsedMin = min_age ? parseInt(min_age) : undefined;
+      const parsedMax = max_age ? parseInt(max_age) : undefined;
+
+      // Validate numbers first
+      if (min_age && isNaN(parsedMin)) {
+        return res.status(422).json({
+          status: "error",
+          message: "min_age must be a number"
+        });
+      }
+
+      if (max_age && isNaN(parsedMax)) {
+        return res.status(422).json({
+          status: "error",
+          message: "max_age must be a number"
+        });
+      }
+
+      // Then validate relationship
+      if ( parsedMin !== undefined && parsedMax !== undefined && parsedMin > parsedMax) {
+        return res.status(422).json({
+          status: "error",
+          message: "min_age cannot be greater than max_age"
+        })
+      }
+
       filter.age = {};
-      if (min_age) filter.age.$gte = parseInt(min_age);
-      if (max_age) filter.age.$lte = parseInt(max_age)
+      if (parsedMin) filter.age.$gte = parsedMin;
+      if (parsedMax) filter.age.$lte = parsedMax;
     }
 
     if (min_gender_probability) {
+      if (min_gender_probability < 0 || min_gender_probability > 1 || isNaN(parseFloat(min_gender_probability))) {
+        return res.status(422).json({
+          status: "error",
+          message: "Probabilities should be numbers between 0 and 1"
+        })
+      }
       filter.gender_probability = {
         $gte: parseFloat(min_gender_probability)
       };
     }
 
     if (min_country_probability) {
+      if (min_country_probability < 0 || min_country_probability > 1 || isNaN(parseFloat(min_country_probability))) {
+        return res.status(422).json({
+          status: "error",
+          message: "Probabilities should be numbers between 0 and 1"
+        })
+      }
       filter.country_probability = {
         $gte: parseFloat(min_country_probability)
       };
@@ -235,14 +292,12 @@ exports.getAllProfiles = async (req, res) => {
 
     const profiles = await Profile.find(filter)
       .collation({ locale: "en", strength: 2 })
-      .select("id name gender age age_group country_id")
       .sort(sort)
       .limit(limitNum)
       .skip((pageNum -1) * limitNum);
 
     const total = await Profile.countDocuments(filter)
       .collation({ locale: "en", strength: 2 })
-      .countDocuments()
     
     res.status(200).json({
       status: "success",
