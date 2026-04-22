@@ -182,15 +182,43 @@ exports.getProfileById = async (req, res) => {
 
 exports.getAllProfiles = async (req, res) => {
   try {
-    const allowedFilters = ["gender", "age", "country_id", "age_group"];
+    const {
+      gender,
+      age_group,
+      country_id,
+      min_age,
+      max_age,
+      min_gender_probability,
+      min_country_probability
+    } = req.query
 
     const filter = {};
 
-    allowedFilters.forEach((field) => {
-      if (req.query[field]) {
-        filter[field] = req.query[field];
-      }
-    });
+    // Build equality filters
+    if (gender) filter.gender = gender;
+    if (age_group) filter.age_group = age_group;
+    if (country_id) filter.country_id = country_id;
+
+    // Build range filters
+    if (min_age || max_age) {
+      filter.age = {};
+      if (min_age) filter.age.$gte = parseInt(min_age);
+      if (max_age) filter.age.$lte = parseInt(max_age)
+    }
+
+    if (min_gender_probability) {
+      filter.gender_probability = {
+        $gte: parseFloat(min_gender_probability)
+      };
+    }
+
+    if (min_country_probability) {
+      filter.country_probability = {
+        $gte: parseFloat(min_country_probability)
+      };
+    }
+
+    console.log("Filter object:", filter);
 
     const profiles = await Profile.find(filter)
       .collation({ locale: "en", strength: 2 })
