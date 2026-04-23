@@ -41,12 +41,13 @@ async function parseNLQ(queryText) {
   }
 
   const countryMapping = await Profile.aggregate([
+    { $match: { country_name: { $ne: null } } },
     { $group: { _id: { name: "$country_name", id: "$country_id" } } },
     { $replaceRoot: { newRoot: "$_id" } }
   ])
 
   for (const country of countryMapping) {
-    if (queryString.includes(country.name.toLowerCase())) {
+    if (country.name && queryString.includes(country.name.toLowerCase())) {
       filter.country_id = country.id
       break
     }

@@ -400,6 +400,8 @@ exports.searchProfiles = async (req, res) => {
     })
 
   } catch (error) {
+    console.error("SEARCH ERROR:", error.message);
+    console.error("SEARCH STACK:", error.stack);
     res.status(500).json({
       status: "error",
       message: "Failed to search profiles"
