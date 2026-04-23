@@ -71,3 +71,5 @@ async function parseNLQ(queryText) {
   }
   return filter;
 }
+
+module.exports = parseNLQ;

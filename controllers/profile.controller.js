@@ -1,5 +1,6 @@
 const axios = require("axios");
 const Profile = require("../models/profile.model");
+const parseNLQ = require("../utils/queryParser")
 
 exports.createProfile = async (req, res) => {
   try {
@@ -336,3 +337,72 @@ exports.deleteProfile = async (req, res) => {
     });
   }
 };
+
+exports.searchProfiles = async (req, res) => {
+  try {
+    const { 
+      q, 
+      sort_by = "created_at",
+      order = "desc",
+      page = 1,
+      limit = 10 
+    } = req.query;
+
+    console.log("1. Query received:", q);
+
+    if (typeof q !== "string") {
+      return res.status(422).json({ 
+        status: "error", 
+        message: "Unable to interpret query" 
+      })
+    }
+
+    if (!q || q === "") {
+      return res.status(400).json({
+        status: "error", 
+        message: "Invalid query parameters"
+      })
+    }
+
+    const filter = await parseNLQ(q);
+
+    if (Object.keys(filter).length === 0) {
+      return res.status(422).json({ 
+        status: "error", 
+        message: "Unable to interpret query" 
+      })
+    }
+
+     // Build sort object
+    const validSortFields = ["age", "created_at", "gender_probability"]
+    const sortField = validSortFields.includes(sort_by) ? sort_by : "created_at"
+    const sort = { [sortField]: order === "desc" ? -1 : 1 }
+
+    // Validate pagination params
+    const pageNum = Math.max(1, Number.parseInt(page) || 1)
+    const limitNum = Math.min(50, Math.max(1, Number.parseInt(limit) || 10))
+
+    const profiles = await Profile.find(filter)
+      .collation({ locale: "en", strength: 2 })
+      .sort(sort)
+      .limit(limitNum)
+      .skip((pageNum -1) * limitNum);
+
+    const total = await Profile.countDocuments(filter)
+      .collation({ locale: "en", strength: 2 })
+
+    res.status(200).json({
+      status: "success",
+      page: pageNum,
+      limit: limitNum,
+      total,
+      data: profiles
+    })
+
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Failed to search profiles"
+    })
+  }
+}
