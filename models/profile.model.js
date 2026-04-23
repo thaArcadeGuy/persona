@@ -8,18 +8,15 @@ const profileSchema = new mongoose.Schema(
       default: () => uuidv7() 
     },
     name: { 
-      type: String, 
-      lowercase: true, 
-      index: true 
+      type: String,
+      index: true,
+      unique: true
     },
     gender: { 
       type: String, 
       index: true 
     },
     gender_probability: { 
-      type: Number 
-    },
-    sample_size: { 
       type: Number 
     },
     age: { 
@@ -32,6 +29,9 @@ const profileSchema = new mongoose.Schema(
     country_id: { 
       type: String, 
       index: true 
+    },
+    country_name: {
+      type: String
     },
     country_probability: { 
       type: Number 
