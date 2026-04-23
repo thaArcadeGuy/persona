@@ -46,6 +46,8 @@ async function parseNLQ(queryText) {
     { $replaceRoot: { newRoot: "$_id" } }
   ])
 
+  countryMapping.sort((a, b) => b.name.length - a.name.length);
+
   for (const country of countryMapping) {
     if (country.name && queryString.includes(country.name.toLowerCase())) {
       filter.country_id = country.id
