@@ -283,7 +283,7 @@ exports.getAllProfiles = async (req, res) => {
     // Build sort object
     const validSortFields = ["age", "created_at", "gender_probability"]
     const sortField = validSortFields.includes(sort_by) ? sort_by : "created_at"
-    const sort = { [sortField]: order === "desc" ? -1 : 1 }
+    const sort = { [sortField]: order === "desc" ? -1 : 1, _id: 1 }
 
     // Validate pagination params
     const pageNum = Math.max(1, Number.parseInt(page) || 1)
