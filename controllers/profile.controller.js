@@ -197,6 +197,16 @@ exports.getAllProfiles = async (req, res) => {
       limit = 10
     } = req.query
 
+    const protocol = req.protocol
+    const host = req.get("host")
+    const path = req.path
+    
+    const buildPageUrl = (page) => {
+      const params = new URLSearchParams(req.query)
+      params.set("page", page)
+      return `${protocol}://${host}${path}?${params.toString()}`
+    }
+
     const filter = {};
 
     // Build equality filters
@@ -300,11 +310,19 @@ exports.getAllProfiles = async (req, res) => {
     const total = await Profile.countDocuments(filter)
       .collation({ locale: "en", strength: 2 })
     
+    const total_pages = total === 0 ? 0 : Math.ceil(total / limitNum)
+
     res.status(200).json({
       status: "success",
       page: pageNum,
       limit: limitNum,
       total,
+      total_pages,
+      links: {
+        self: buildPageUrl(pageNum),
+        next: pageNum < total_pages ? buildPageUrl(pageNum + 1) : null,
+        prev: pageNum > 1 ? buildPageUrl(pageNum - 1) : null
+      },
       data: profiles
     });
   } catch (error) {
@@ -347,6 +365,16 @@ exports.searchProfiles = async (req, res) => {
       page = 1,
       limit = 10 
     } = req.query;
+
+    const protocol = req.protocol
+    const host = req.get("host")
+    const path = req.path
+
+    const buildPageUrl = (page) => {
+      const params = new URLSearchParams(req.query)
+      params.set("page", page)
+      return `${protocol}://${host}${path}?${params.toString()}`
+    }
 
     console.log("1. Query received:", q);
 
@@ -391,11 +419,19 @@ exports.searchProfiles = async (req, res) => {
     const total = await Profile.countDocuments(filter)
       .collation({ locale: "en", strength: 2 })
 
+    const total_pages = total === 0 ? 0 : Math.ceil(total / limitNum)
+
     res.status(200).json({
       status: "success",
       page: pageNum,
       limit: limitNum,
       total,
+      total_pages,
+      links: {
+        self: buildPageUrl(pageNum),
+        next: pageNum < total_pages ? buildPageUrl(pageNum + 1) : null,
+        prev: pageNum > 1 ? buildPageUrl(pageNum - 1) : null
+      },
       data: profiles
     })
 
