@@ -40,7 +40,7 @@ apiRouter.get("/github/callback", (req, res, next) => {
   })(req, res, next)
 })
 
-apiRouter.post("/refresh", async (req, res, next) => {
+apiRouter.post("/refresh", async (req, res) => {
   const token = req.body.refresh_token
 
   if (!token) {
@@ -112,6 +112,51 @@ apiRouter.post("/refresh", async (req, res, next) => {
     res.status(500).json({
       status: "error",
       message: "Failed to get refresh token",
+    });
+  }
+})
+
+apiRouter.post("/logout", async (req, res) => {
+  const { refresh_token } = req.body
+
+  if(!refresh_token) {
+    return res.status(400).json({
+      status: "error",
+      message: "Refresh token is required"
+    })
+  }
+
+  try {
+    const decoded = jwt.verify(refresh_token, process.env.JWT_SECRET)
+
+    await BlockedToken.create({
+      token: refresh_token,
+      expiresAt: new Date(decoded.exp * 1000)
+    })
+
+    res.status(200).json({
+      status: "success",
+      message: "Logged out successfully"
+    })
+
+  } catch (error) {
+    if (error.name === "TokenExpiredError") {
+      return res.status(200).json({
+        status: "success",
+        message: "Logged out successfully"
+      });
+    }
+
+    if (error.name === "JsonWebTokenError") {
+      return res.status(400).json({
+        status: "error",
+        message: "Invalid token"
+      })
+    }
+
+    res.status(500).json({
+      status: "error",
+      message: "Failed to log out",
     });
   }
 })
