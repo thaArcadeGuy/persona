@@ -444,3 +444,169 @@ exports.searchProfiles = async (req, res) => {
     })
   }
 }
+
+exports.exportProfiles = async (req, res) => {
+  try {
+    const {
+      gender, 
+      age_group, 
+      country_id, 
+      min_age, 
+      max_age, 
+      min_gender_probability, 
+      min_country_probability, 
+      sort_by, 
+      order
+    } = req.query
+
+    const filter = {};
+
+    // Build equality filters
+    if (gender) {
+      const allowedGender = ["male", "female"]
+      if (!allowedGender.includes(gender.toLowerCase())) {
+        return res.status(422).json({
+          status: "error",
+          message: "Invalid query parameters"
+        })
+      }
+      filter.gender = gender.toLowerCase();
+    };
+
+    if (age_group) {
+      const allowedAgeGroup = ["child", "teenager", "adult", "senior"]
+      if (!allowedAgeGroup.includes(age_group.toLowerCase())) {
+        return res.status(422).json({
+          status: "error",
+          message: "Invalid query parameters"
+        })
+      }
+      filter.age_group = age_group.toLowerCase();
+    };
+    if (country_id) filter.country_id = country_id;
+
+    // Build range filters
+    if (min_age || max_age) {
+      const parsedMin = min_age ? parseInt(min_age) : undefined;
+      const parsedMax = max_age ? parseInt(max_age) : undefined;
+
+      // Validate numbers first
+      if (min_age && isNaN(parsedMin)) {
+        return res.status(422).json({
+          status: "error",
+          message: "min_age must be a number"
+        });
+      }
+
+      if (max_age && isNaN(parsedMax)) {
+        return res.status(422).json({
+          status: "error",
+          message: "max_age must be a number"
+        });
+      }
+
+      // Then validate relationship
+      if ( parsedMin !== undefined && parsedMax !== undefined && parsedMin > parsedMax) {
+        return res.status(422).json({
+          status: "error",
+          message: "min_age cannot be greater than max_age"
+        })
+      }
+
+      filter.age = {};
+      if (parsedMin) filter.age.$gte = parsedMin;
+      if (parsedMax) filter.age.$lte = parsedMax;
+    }
+
+    if (min_gender_probability) {
+      if (min_gender_probability < 0 || min_gender_probability > 1 || isNaN(parseFloat(min_gender_probability))) {
+        return res.status(422).json({
+          status: "error",
+          message: "Probabilities should be numbers between 0 and 1"
+        })
+      }
+      filter.gender_probability = {
+        $gte: parseFloat(min_gender_probability)
+      };
+    }
+
+    if (min_country_probability) {
+      if (min_country_probability < 0 || min_country_probability > 1 || isNaN(parseFloat(min_country_probability))) {
+        return res.status(422).json({
+          status: "error",
+          message: "Probabilities should be numbers between 0 and 1"
+        })
+      }
+      filter.country_probability = {
+        $gte: parseFloat(min_country_probability)
+      };
+    }
+
+    // Build sort object
+    const validSortFields = ["age", "created_at", "gender_probability"]
+    const sortField = validSortFields.includes(sort_by) ? sort_by : "created_at"
+    const sort = { [sortField]: order === "desc" ? -1 : 1, _id: 1 }
+
+    const timestamp = Date.now()
+    res.setHeader("Content-Type", "text/csv")
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="profiles_${timestamp}.csv"`
+    )
+
+    const columns = [
+      "id",
+      "name",
+      "gender",
+      "gender_probability",
+      "age",
+      "age_group",
+      "country_id",
+      "country_name",
+      "country_probability",
+      "created_at"
+    ]
+
+    res.write(columns.join(",") + "\n")
+
+    const cursor = await Profile.find(filter)
+      .collation({ locale: "en", strength: 2 })
+      .sort(sort)
+      .cursor()
+
+    for await (const doc of cursor) {
+      const row = [
+        doc.id,
+        doc.name,
+        doc.gender,
+        doc.gender_probability,
+        doc.age,
+        doc.age_group,
+        doc.country_id,
+        doc.country_name,
+        doc.country_probability,
+        doc.created_at
+      ]
+        .map(val => {
+          if (val === null || val === undefined) return ""
+          const str = String(val).replace(/"/g, '""')
+          return `"${str}"`
+        })
+        .join(",")
+
+      res.write(row + "\n")
+    }
+
+    res.end()
+
+  } catch (error) {
+    if (!res.headersSent) {
+        res.status(500).json({
+        status: "error",
+        message: "Failed to export profiles"
+      });
+    } else {
+      res.end()
+    } 
+  }
+}
