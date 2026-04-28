@@ -5,6 +5,8 @@ const authRouter = require("./routes/auth.route")
 const { connectDB } = require("./config/db")
 const passport = require("passport")
 require("./config/passport")
+const { authLimiter, generalLimiter } = require("./middlewares/rateLimiter.middleware")
+const { logger } = require("./middlewares/logger.middleware")
 
 const app = express()
 
@@ -17,13 +19,15 @@ app.use(async (req, res, next) => {
   next()
 })
 
+app.use(logger)
+
 app.get("/", (req, res) => {
   res.status(200).json("Welcome to PersonaAPI")
 })
 
-app.use("/auth", authRouter)
+app.use("/auth", authLimiter, authRouter)
 
-app.use("/api", profileRouter)
+app.use("/api", generalLimiter, profileRouter)
 
 app.use((req, res) => {
   res.status(404).json({
