@@ -22,7 +22,7 @@ exports.createProfile = async (req, res) => {
     }
 
      console.log("2. Checking if name exists in DB...");
-    //TODO:  remove .toLowerCase()
+    
     const nameExists = await Profile.findOne({ name: name });
     console.log("3. DB check complete. Exists?", !!nameExists);
     if (nameExists) {
@@ -118,7 +118,7 @@ exports.createProfile = async (req, res) => {
     if (genderizeData) {
       profileData.gender = genderizeData.gender;
       profileData.gender_probability = genderizeData.probability;
-      profileData.sample_size = genderizeData.count;
+      // profileData.sample_size = genderizeData.count;
     }
 
     if (agifyData) {
@@ -139,6 +139,9 @@ exports.createProfile = async (req, res) => {
       );
       profileData.country_id = topCountry.country_id;
       profileData.country_probability = topCountry.probability;
+
+      const countryProfile = await Profile.findOne({ country_id: topCountry.country_id })
+      profileData.country_name = countryProfile?.country_name || null
     }
 
     const newProfile = await Profile.create(profileData);
