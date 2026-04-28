@@ -44,7 +44,9 @@ apiRouter.get("/github/callback", (req, res, next) => {
 })
 
 apiRouter.post("/refresh", async (req, res) => {
-  const token = req.body.refresh_token
+  console.log("HEADERS:", req.headers["content-type"])  // should print "application/json"
+  console.log("BODY:", req.body)
+  const token = req.body?.refresh_token
 
   if (!token) {
     return res.status(400).json({
@@ -120,7 +122,7 @@ apiRouter.post("/refresh", async (req, res) => {
 })
 
 apiRouter.post("/logout", async (req, res) => {
-  const { refresh_token } = req.body
+  const { refresh_token } = req.body || {}
 
   if(!refresh_token) {
     return res.status(400).json({
