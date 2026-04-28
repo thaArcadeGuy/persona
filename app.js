@@ -6,7 +6,7 @@ const { connectDB } = require("./config/db")
 const passport = require("passport")
 require("./config/passport")
 const { authLimiter, generalLimiter } = require("./middlewares/rateLimiter.middleware")
-const { logger } = require("./middlewares/logger.middleware")
+const logger = require("./middlewares/logger.middleware")
 
 const app = express()
 

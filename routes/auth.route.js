@@ -10,6 +10,9 @@ apiRouter.get("/github", passport.authenticate("github", { scope: [ "user:email"
 
 apiRouter.get("/github/callback", (req, res, next) => {
   passport.authenticate("github", (error, user, info) => {
+    console.log("AUTH ERROR:", error)  
+    console.log("AUTH USER:", user)    
+    console.log("AUTH INFO:", info)
     if (error) {
       return res.status(500).json({
         status: "error",

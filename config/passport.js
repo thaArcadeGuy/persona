@@ -10,6 +10,7 @@ passport.use(
   },
    async function(accessToken, refreshToken, profile, done) {
     try {
+      console.log("PROFILE FROM GITHUB:", JSON.stringify(profile, null, 2))
       const user = await User.findOne({ github_id: profile.id })
       if (user) {
         user.last_login_at = new Date()
@@ -21,8 +22,8 @@ passport.use(
       const newUser = await User.create({
         github_id: profile.id,
         username: profile.username,
-        email: profile.emails[0].value,
-        avatar_url: profile.photos[0].value,
+        email: profile.emails?.[0]?.value || profile._json?.email || null,
+        avatar_url: profile.photos?.[0]?.value || profile>_json?.avatar_url || null,
         last_login_at: new Date()
       })
 
