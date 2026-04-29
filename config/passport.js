@@ -23,7 +23,7 @@ passport.use(
         github_id: profile.id,
         username: profile.username,
         email: profile.emails?.[0]?.value || profile._json?.email || null,
-        avatar_url: profile.photos?.[0]?.value || profile>_json?.avatar_url || null,
+        avatar_url: profile.photos?.[0]?.value || profile._json?.avatar_url || null,
         last_login_at: new Date()
       })
 
