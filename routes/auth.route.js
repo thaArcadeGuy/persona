@@ -5,6 +5,7 @@ const { generateAccessToken, generateRefreshToken } = require("../utils/generate
 const jwt = require("jsonwebtoken")
 const BlockedToken = require("../models/blockedToken.model")
 const User = require("../models/user.model")
+const axios = require("axios")
 
 apiRouter.get("/github", passport.authenticate("github", { scope: [ "user:email" ] }))
 
@@ -41,6 +42,104 @@ apiRouter.get("/github/callback", (req, res, next) => {
       }
     })
   })(req, res, next)
+})
+
+apiRouter.post("/github/cli-callback", async (req, res) => {
+  try {
+    const { code, code_verifier } = req.body
+
+    if (!code || !code_verifier) {
+      return res.status(400).json({
+        status: "error",
+        message: "code and code_verifier are required"
+      })
+    }
+
+    const tokenResponse = await axios.post(
+      "https://github.com/login/oauth/access_token",
+      {
+        client_id: process.env.GITHUB_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLIENT_SECRET,
+        code,
+        code_verifier
+      },
+      {
+        headers: {
+          Accept: "application/json"
+        }
+      }
+    )
+
+    const githubAccessToken = tokenResponse.data.access_token
+
+    if (!githubAccessToken) {
+      const reason = tokenResponse.data.error_description
+        || tokenResponse.data.error
+        || "Unknown error"
+      console.error("GitHub token error:", reason)
+      return res.status(401).json({
+        status: "error",
+        message: "Failed to get access token from GitHub"
+      })
+    }
+
+    const profileResponse = await axios.get("https://api.github.com/user", {
+      headers: {
+        Authorization: `Bearer ${githubAccessToken}`,
+        Accept: "application/vnd.github+json"
+      }
+    })
+
+    const profile = profileResponse.data
+    let email = profile.email
+
+    if (!email) {
+      const emailResponse = await axios.get("https://api.github.com/user/emails", {
+        headers: {
+          Authorization: `Bearer ${githubAccessToken}`
+        }
+      })
+
+      const primaryEmail = emailResponse.data.find(e => e.primary && e.verified)
+      email = primaryEmail?.email || null
+    }
+
+    let user = await User.findOne({ github_id: profile.id })
+
+    if (user) {
+      user.last_login_at = new Date()
+      await user.save()
+    } else {
+      user = await User.create({
+        github_id: profile.id,
+        username: profile.login,
+        email,
+        avatar_url: profile.avatar_url,
+        last_login_at: new Date()
+      })
+    }
+
+    const accessToken = generateAccessToken(user)
+    const refreshToken = generateRefreshToken(user)
+
+    res.status(200).json({
+      status: "success",
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role
+      }
+    })
+
+  } catch (error) {
+    console.error("CLI GitHub Auth Error:", error.response?.data || error.message);
+    res.status(500).json({
+      status: "error",
+      message: "Github CLI authentication failed"
+    })
+  }
 })
 
 apiRouter.post("/refresh", async (req, res) => {
