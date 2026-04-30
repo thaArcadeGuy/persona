@@ -265,8 +265,8 @@ exports.getAllProfiles = async (req, res) => {
       }
 
       filter.age = {};
-      if (parsedMin) filter.age.$gte = parsedMin;
-      if (parsedMax) filter.age.$lte = parsedMax;
+      if (parsedMin !== undefined) filter.age.$gte = parsedMin;
+      if (parsedMax !== undefined) filter.age.$lte = parsedMax;
     }
 
     if (min_gender_probability) {
@@ -517,8 +517,8 @@ exports.exportProfiles = async (req, res) => {
       }
 
       filter.age = {};
-      if (parsedMin) filter.age.$gte = parsedMin;
-      if (parsedMax) filter.age.$lte = parsedMax;
+      if (parsedMin !== undefined) filter.age.$gte = parsedMin;
+      if (parsedMax !== undefined) filter.age.$lte = parsedMax;
     }
 
     if (min_gender_probability) {
