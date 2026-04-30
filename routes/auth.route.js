@@ -11,7 +11,7 @@ require("dotenv").config()
 
 apiRouter.get("/github", passport.authenticate("github", { scope: [ "user:email" ] }))
 
-apiRouter.get("/github/callback", (req, res, next) => {
+apiRouter.get("/github/callback", async (req, res, next) => {
   const { code, state } = req.query
   const portalUrl = process.env.PORTAL_URL || "http://localhost:4000"
   const isPortal = state === "portal"
