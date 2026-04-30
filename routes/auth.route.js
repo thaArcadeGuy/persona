@@ -15,20 +15,73 @@ apiRouter.get("/github/callback", async (req, res, next) => {
   const { code, state } = req.query
   const portalUrl = process.env.PORTAL_URL || "http://localhost:4000"
   const isPortal = state === "portal"
-  const isCli = state.startsWith("cli_")
+  const isCli = state?.startsWith("cli_") || false
+
+  if (!state) {
+    return res.status(400).json({
+      status: "error",
+      message: "Missing state parameter"
+    })
+  }
 
   if (!code) {
-    passport.authenticate("github", (error, user, info) => {
-    if (error) console.error("GitHub auth error:", error.message)
+    return res.status(400).json({
+      status: "error",
+      message: "Missing code parameter"
+    })
+  }
 
-    if (error) {
-      if (isPortal) return res.redirect(`${portalUrl}/login?error=auth_failed`)
-      return res.status(500).json({ status: "error", message: "Authentication failed" })
+  try {
+    const tokenResponse = await axios.post(
+      "https://github.com/login/oauth/access_token",
+      {
+        client_id: process.env.GITHUB_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLIENT_SECRET,
+        code
+      },
+      { headers: { Accept: "application/json" } }
+    )
+
+    const githubAccessToken = tokenResponse.data.access_token
+
+    if (!githubAccessToken) {
+      console.error("GitHub token error:", tokenResponse.data.error_description || tokenResponse.data.error)
+      if (isPortal) return res.redirect(`${portalUrl}/login?error=github_failed`)
+      return res.status(401).json({
+        status: "error",
+        message: "Failed to get access token from GitHub"
+      })
     }
 
-    if (!user) {
-      if (isPortal) return res.redirect(`${portalUrl}/login?error=auth_denied`)
-      return res.status(401).json({ status: "error", message: "Authentication denied" })
+    const profileResponse = await axios.get("https://api.github.com/user", {
+      headers: {
+        Authorization: `Bearer ${githubAccessToken}`,
+        Accept: "application/vnd.github+json"
+      }
+    })
+    const profile = profileResponse.data
+
+    let email = profile.email
+    if (!email) {
+      const emailResponse = await axios.get("https://api.github.com/user/emails", {
+        headers: { Authorization: `Bearer ${githubAccessToken}` }
+      })
+      const primary = emailResponse.data.find(e => e.primary && e.verified)
+      email = primary?.email || null
+    }
+
+    let user = await User.findOne({ github_id: profile.id })
+    if (user) {
+      user.last_login_at = new Date()
+      await user.save()
+    } else {
+      user = await User.create({
+        github_id: profile.id,
+        username: profile.login,
+        email,
+        avatar_url: profile.avatar_url,
+        last_login_at: new Date()
+      })
     }
 
     const accessToken = generateAccessToken(user)
@@ -51,85 +104,21 @@ apiRouter.get("/github/callback", async (req, res, next) => {
       status: "success",
       access_token: accessToken,
       refresh_token: refreshToken,
-      user: { 
-        id: user.id, 
-        username: user.username, 
-        role: user.role 
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role
       }
     })
-  })(req, res, next)
-  } else {
-    try {
-    const tokenResponse = await axios.post(
-      "https://github.com/login/oauth/access_token",
-      {
-        client_id: process.env.GITHUB_CLIENT_ID,
-        client_secret: process.env.GITHUB_CLIENT_SECRET,
-        code
-      },
-      { headers: { Accept: "application/json" } }
-    );
-
-    const githubAccessToken = tokenResponse.data.access_token;
-    if (!githubAccessToken) {
-      return res.status(401).json({
-        status: "error",
-        message: "Failed to get access token from GitHub"
-      });
-    }
-
-    const profileResponse = await axios.get("https://api.github.com/user", {
-      headers: { Authorization: `Bearer ${githubAccessToken}` }
-    });
-    const profile = profileResponse.data;
-
-    let email = profile.email;
-    if (!email) {
-      const emailResponse = await axios.get("https://api.github.com/user/emails", {
-        headers: { Authorization: `Bearer ${githubAccessToken}` }
-      });
-      const primary = emailResponse.data.find(e => e.primary && e.verified);
-      email = primary?.email || null;
-    }
-
-    let user = await User.findOne({ github_id: profile.id });
-    if (user) {
-      user.last_login_at = new Date();
-      await user.save();
-    } else {
-      user = await User.create({
-        github_id: profile.id,
-        username: profile.login,
-        email,
-        avatar_url: profile.avatar_url,
-        last_login_at: new Date()
-      });
-    }
-
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
-    const tokenParams = `access_token=${accessToken}&refresh_token=${refreshToken}&username=${user.username}&role=${user.role}&id=${user.id}`;
-
-    if (isPortal) {
-      return res.redirect(`${portalUrl}/callback?${tokenParams}`);
-    }
-
-    res.status(200).json({
-      status: "success",
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      user: { id: user.id, username: user.username, role: user.role }
-    });
 
   } catch (error) {
-    console.error("Direct auth error:", error.message);
+    console.error("GitHub callback error:", error.response?.data || error.message)
+    if (isPortal) return res.redirect(`${portalUrl}/login?error=auth_failed`)
     res.status(500).json({
       status: "error",
       message: "Authentication failed"
-    });
+    })
   }
-  }
-
 })
 
 apiRouter.get("/me", authMiddleware, (req, res) => {
@@ -246,8 +235,6 @@ apiRouter.post("/github/cli-callback", async (req, res) => {
 })
 
 apiRouter.post("/refresh", async (req, res) => {
-  console.log("HEADERS:", req.headers["content-type"])  // should print "application/json"
-  console.log("BODY:", req.body)
   const token = req.body?.refresh_token
 
   if (!token) {
