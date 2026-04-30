@@ -605,6 +605,86 @@ Returns 204 No Content on success.
   "message": "Endpoint not found. Please check the API documentation."
 }
 ```
+## Authentication
+
+### GitHub OAuth Flow
+
+1. User clicks "Login with GitHub"
+2. Redirected to GitHub for authorization
+3. GitHub redirects back with authorization code
+4. Backend exchanges code for GitHub access token
+5. User profile fetched from GitHub
+6. User created or updated in database
+7. Access token (3 min) and refresh token (5 min) issued
+
+### Token Management
+
+- **Access Token**: JWT containing user ID and role. Expires in 3 minutes.
+- **Refresh Token**: JWT for obtaining new access tokens. Expires in 5 minutes.
+- **Token Refresh**: POST `/auth/refresh` invalidates old refresh token and issues new pair.
+- **Blocklist**: Used refresh tokens are invalidated server-side to prevent reuse.
+
+### Role-Based Access Control
+
+| Role | Permissions |
+|------|-------------|
+| `admin` | Full access: create, read, update, delete profiles |
+| `analyst` | Read-only: list, search, view profiles |
+
+Default role for new users: `analyst`.
+
+All `/api/*` routes require a valid access token and appropriate role.
+
+## API Versioning
+
+All profile endpoints require the header: X-API-Version: 1
+Requests without this header receive `400 Bad Request`.
+
+## Rate Limiting
+
+| Scope | Limit |
+|-------|-------|
+| Auth endpoints (`/auth/*`) | 10 requests per minute |
+| All other endpoints | 60 requests per minute per user |
+
+Exceeded limits return `429 Too Many Requests`.
+
+## Natural Language Search
+
+Endpoint: `GET /api/profiles/search?q=query`
+
+Rule-based parser that interprets plain English queries:
+
+| Query Pattern | Example | Filters Applied |
+|---------------|---------|-----------------|
+| Gender keywords | `"young males"` | `gender=male` + age 16-24 |
+| Age group | `"adult females"` | `age_group=adult` + `gender=female` |
+| Country | `"people from kenya"` | `country_id=KE` |
+| Above/Below | `"above 30"` | `min_age=30` |
+| Between | `"between 25 and 40"` | `min_age=25` + `max_age=40` |
+| Both genders | `"male and female teenagers"` | `age_group=teenager` (no gender filter) |
+
+"young" maps to ages 16-24. Unrecognizable queries return 422.
+
+## New Auth Endpoints
+
+### GET /auth/github
+Redirects to GitHub OAuth authorization.
+
+### POST /auth/refresh
+**Body:** `{ "refresh_token": "string" }`
+Returns new access and refresh token pair.
+
+### POST /auth/logout
+**Body:** `{ "refresh_token": "string" }`
+Invalidates the refresh token.
+
+### GET /auth/me
+Returns current authenticated user's profile.
+
+### GET /api/profiles/export?format=csv
+Exports filtered profiles as CSV file.
+Supports same filters as GET /api/profiles.
 
 ## Local Setup
 
