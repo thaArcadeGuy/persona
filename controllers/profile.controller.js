@@ -592,7 +592,9 @@ exports.exportProfiles = async (req, res) => {
       ]
         .map(val => {
           if (val === null || val === undefined) return ""
-          const str = String(val).replace(/"/g, '""')
+          const raw = String(val)
+          const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw
+          const str = safe.replace(/"/g, '""')
           return `"${str}"`
         })
         .join(",")
