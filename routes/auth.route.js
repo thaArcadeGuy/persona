@@ -46,6 +46,75 @@ apiRouter.get("/github/callback", (req, res, next) => {
   })(req, res, next)
 })
 
+apiRouter.get("/github/portal-callback", async (req, res) => {
+  const portalUrl = process.env.PORTAL_URL || "http://localhost:4000"
+
+  try {
+    const { code } = req.query
+
+    if (!code) {
+      return res.redirect(`${portalUrl}/login?error=missing_code`)
+    }
+
+    const tokenResponse = await axios.post(
+      "https://github.com/login/oauth/access_token",
+      {
+        client_id: process.env.GITHUB_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLIENT_SECRET,
+        code
+      },
+      { headers: { Accept: "application/json" } }
+    )
+
+    const githubAccessToken = tokenResponse.data.access_token
+
+    if (!githubAccessToken) {
+      console.error("GitHub token error:", tokenResponse.data.error, tokenResponse.data.error_description)
+      return res.redirect(`${portalUrl}/login?error=github_failed`)
+    }
+
+    const profileResponse = await axios.get("https://api.github.com/user", {
+      headers: {
+        Authorization: `Bearer ${githubAccessToken}`,
+        Accept: "application/vnd.github+json"
+      }
+    })
+    const profile = profileResponse.data
+
+    let email = profile.email
+    if (!email) {
+      const emailResponse = await axios.get("https://api.github.com/user/emails", {
+        headers: { Authorization: `Bearer ${githubAccessToken}` }
+      })
+      const primary = emailResponse.data.find(e => e.primary && e.verified)
+      email = primary?.email || null
+    }
+
+    let user = await User.findOne({ github_id: profile.id })
+    if (user) {
+      user.last_login_at = new Date()
+      await user.save()
+    } else {
+      user = await User.create({
+        github_id: profile.id,
+        username: profile.login,
+        email,
+        avatar_url: profile.avatar_url,
+        last_login_at: new Date()
+      })
+    }
+
+    const accessToken = generateAccessToken(user)
+    const refreshToken = generateRefreshToken(user)
+
+    res.redirect(`${portalUrl}/callback?access_token=${accessToken}&refresh_token=${refreshToken}&username=${user.username}&role=${user.role}&id=${user.id}`)
+
+  } catch (error) {
+    console.error("Portal auth error:", error.response?.data || error.message)
+    res.redirect(`${portalUrl}/login?error=auth_failed`)
+  }
+})
+
 apiRouter.get("/me", authMiddleware, (req, res) => {
   res.status(200).json({
     status: "success",
