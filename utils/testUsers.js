@@ -1,7 +1,12 @@
+require("dotenv").config()
+const mongoose = require("mongoose")
 const User = require("../models/user.model");
 const { generateAccessToken, generateRefreshToken } = require("../utils/generateTokens");
 
 async function createTestUsers() {
+  await mongoose.connect(process.env.MONGO_URI);
+  console.log("Connected to database");
+
   // Create admin user
   let admin = await User.findOne({ github_id: "test-admin" });
   if (!admin) {
@@ -31,6 +36,7 @@ async function createTestUsers() {
   console.log("Admin Access Token:", adminAccessToken);
   console.log("Admin Refresh Token:", adminRefreshToken);
   console.log("Analyst Access Token:", analystAccessToken);
+  await mongoose.disconnect();
 }
 
 createTestUsers();

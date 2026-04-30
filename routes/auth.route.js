@@ -12,12 +12,13 @@ require("dotenv").config()
 apiRouter.get("/github", passport.authenticate("github", { scope: [ "user:email" ] }))
 
 apiRouter.get("/github/callback", (req, res, next) => {
+  const { code, state } = req.query
   const portalUrl = process.env.PORTAL_URL || "http://localhost:4000"
-  const state = req.query.state || ""
   const isPortal = state === "portal"
   const isCli = state.startsWith("cli_")
 
-  passport.authenticate("github", (error, user, info) => {
+  if (!code) {
+    passport.authenticate("github", (error, user, info) => {
     if (error) console.error("GitHub auth error:", error.message)
 
     if (error) {
@@ -57,6 +58,78 @@ apiRouter.get("/github/callback", (req, res, next) => {
       }
     })
   })(req, res, next)
+  } else {
+    try {
+    const tokenResponse = await axios.post(
+      "https://github.com/login/oauth/access_token",
+      {
+        client_id: process.env.GITHUB_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLIENT_SECRET,
+        code
+      },
+      { headers: { Accept: "application/json" } }
+    );
+
+    const githubAccessToken = tokenResponse.data.access_token;
+    if (!githubAccessToken) {
+      return res.status(401).json({
+        status: "error",
+        message: "Failed to get access token from GitHub"
+      });
+    }
+
+    const profileResponse = await axios.get("https://api.github.com/user", {
+      headers: { Authorization: `Bearer ${githubAccessToken}` }
+    });
+    const profile = profileResponse.data;
+
+    let email = profile.email;
+    if (!email) {
+      const emailResponse = await axios.get("https://api.github.com/user/emails", {
+        headers: { Authorization: `Bearer ${githubAccessToken}` }
+      });
+      const primary = emailResponse.data.find(e => e.primary && e.verified);
+      email = primary?.email || null;
+    }
+
+    let user = await User.findOne({ github_id: profile.id });
+    if (user) {
+      user.last_login_at = new Date();
+      await user.save();
+    } else {
+      user = await User.create({
+        github_id: profile.id,
+        username: profile.login,
+        email,
+        avatar_url: profile.avatar_url,
+        last_login_at: new Date()
+      });
+    }
+
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+    const tokenParams = `access_token=${accessToken}&refresh_token=${refreshToken}&username=${user.username}&role=${user.role}&id=${user.id}`;
+
+    if (isPortal) {
+      return res.redirect(`${portalUrl}/callback?${tokenParams}`);
+    }
+
+    res.status(200).json({
+      status: "success",
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      user: { id: user.id, username: user.username, role: user.role }
+    });
+
+  } catch (error) {
+    console.error("Direct auth error:", error.message);
+    res.status(500).json({
+      status: "error",
+      message: "Authentication failed"
+    });
+  }
+  }
+
 })
 
 apiRouter.get("/me", authMiddleware, (req, res) => {
