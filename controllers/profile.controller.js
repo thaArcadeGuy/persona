@@ -202,7 +202,7 @@ exports.getAllProfiles = async (req, res) => {
 
     const protocol = req.protocol
     const host = req.get("host")
-    const path = req.path
+    const path = `${req.baseUrl}${req.path}`
     
     const buildPageUrl = (page) => {
       const params = new URLSearchParams(req.query)
@@ -371,7 +371,7 @@ exports.searchProfiles = async (req, res) => {
 
     const protocol = req.protocol
     const host = req.get("host")
-    const path = req.path
+    const path = `${req.baseUrl}${req.path}`
 
     const buildPageUrl = (page) => {
       const params = new URLSearchParams(req.query)
