@@ -6,6 +6,7 @@ const jwt = require("jsonwebtoken")
 const BlockedToken = require("../models/blockedToken.model")
 const User = require("../models/user.model")
 const axios = require("axios")
+require("dotenv").config()
 
 apiRouter.get("/github", passport.authenticate("github", { scope: [ "user:email" ] }))
 
