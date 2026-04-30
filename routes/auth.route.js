@@ -2,6 +2,7 @@ const express = require("express")
 const apiRouter = express.Router()
 const passport = require("passport")
 const { generateAccessToken, generateRefreshToken } = require("../utils/generateTokens")
+const authMiddleware = require("../middlewares/auth.middleware")
 const jwt = require("jsonwebtoken")
 const BlockedToken = require("../models/blockedToken.model")
 const User = require("../models/user.model")
@@ -43,6 +44,21 @@ apiRouter.get("/github/callback", (req, res, next) => {
       }
     })
   })(req, res, next)
+})
+
+apiRouter.get("/me", authMiddleware, (req, res) => {
+  res.status(200).json({
+    status: "success",
+    user: {
+      id: req.user.id,
+      username: req.user.username,
+      email: req.user.email,
+      avatar_url: req.user.avatar_url,
+      role: req.user.role,
+      is_active: req.user.is_active,
+      last_login_at: req.user.last_login_at
+    }
+  })
 })
 
 apiRouter.post("/github/cli-callback", async (req, res) => {
