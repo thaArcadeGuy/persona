@@ -4,10 +4,11 @@ const profileController = require("../controllers/profile.controller")
 const authMiddleware = require("../middlewares/auth.middleware")
 const roleCheck = require("../middlewares/roles.middleware")
 const versionChecker = require("../middlewares/apiVersion.middleware")
+const cacheMiddleware = require("../middlewares/cache.middleware")
 
 apiRouter.post("/profiles", versionChecker, authMiddleware, roleCheck("admin"), profileController.createProfile)
-apiRouter.get("/profiles", versionChecker, authMiddleware, roleCheck("admin", "analyst"), profileController.getAllProfiles)
-apiRouter.get("/profiles/search", versionChecker, authMiddleware, roleCheck("admin", "analyst"), profileController.searchProfiles)
+apiRouter.get("/profiles", versionChecker, authMiddleware, roleCheck("admin", "analyst"), cacheMiddleware(60), profileController.getAllProfiles)
+apiRouter.get("/profiles/search", versionChecker, authMiddleware, roleCheck("admin", "analyst"), cacheMiddleware(60), profileController.searchProfiles)
 apiRouter.get("/profiles/export", versionChecker, authMiddleware, roleCheck("admin", "analyst"), profileController.exportProfiles)
 apiRouter.get("/users/me", authMiddleware, (req, res) => {
   res.status(200).json({
