@@ -4,7 +4,7 @@ const profileController = require("../controllers/profile.controller")
 const authMiddleware = require("../middlewares/auth.middleware")
 const roleCheck = require("../middlewares/roles.middleware")
 const versionChecker = require("../middlewares/apiVersion.middleware")
-const cacheMiddleware = require("../middlewares/cache.middleware")
+const { cacheMiddleware } = require("../middlewares/cache.middleware")
 
 apiRouter.post("/profiles", versionChecker, authMiddleware, roleCheck("admin"), profileController.createProfile)
 apiRouter.get("/profiles", versionChecker, authMiddleware, roleCheck("admin", "analyst"), cacheMiddleware(60), profileController.getAllProfiles)

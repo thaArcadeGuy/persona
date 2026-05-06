@@ -1,6 +1,8 @@
-const axios = require("axios");
-const Profile = require("../models/profile.model");
+const axios = require("axios")
+const Profile = require("../models/profile.model")
 const parseNLQ = require("../utils/queryParser")
+const { redisDelete } = require("../middlewares/cache.middleware")
+
 
 exports.createProfile = async (req, res) => {
   try {
@@ -150,6 +152,7 @@ exports.createProfile = async (req, res) => {
       status: "success",
       data: newProfile,
     });
+    await redisDelete("profiles:*").catch(() => {})
   } catch (error) {
     console.error("FULL ERROR:", error);
     console.error("ERROR STACK:", error.stack);
@@ -351,6 +354,7 @@ exports.deleteProfile = async (req, res) => {
     }
 
     res.status(204).send();
+    await redisDelete("profiles:*").catch(() => {})
   } catch (error) {
     res.status(500).json({
       status: "error",

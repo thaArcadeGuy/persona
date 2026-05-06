@@ -1,7 +1,6 @@
 const axios = require("axios")
-const crypto = require("node:crypto")
 require("dotenv").config()
-const normalizeFilter = require("../utils/normalizeFilter")
+const { normalizeQuery, buildCacheKey } = require("../utils/normalizeQuery")
 
 const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL
 const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN
@@ -21,19 +20,18 @@ async function redisSet(key, value, ttl = 60) {
   })
 }
 
+async function redisDelete(pattern) {
+  await axios.delete(`${REDIS_URL}/del/${pattern}`, {
+    headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
+  })
+}
+
 const cacheMiddleware = (duration = 60) => {
   return async (req, res, next) => {
     if (req.method !== "GET") return next()
 
-    const normalizedQuery = normalizeFilter(req.query)
-
-    const keyHash = crypto
-      .createHash("sha256")
-      .update(JSON.stringify(normalizedQuery))
-      .digest("hex")
-      .slice(0, 16)
-    
-    const key = `profiles:${keyHash}`
+    const normalized = normalizeQuery(req.query)
+    const key = buildCacheKey(normalized)
 
     try {
       const cached = await redisGet(key)
@@ -59,4 +57,4 @@ const cacheMiddleware = (duration = 60) => {
   }
 }
 
-module.exports = cacheMiddleware
+module.exports = { cacheMiddleware, redisDelete }
