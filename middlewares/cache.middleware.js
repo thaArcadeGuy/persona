@@ -21,7 +21,15 @@ async function redisSet(key, value, ttl = 60) {
 }
 
 async function redisDelete(pattern) {
-  await axios.delete(`${REDIS_URL}/del/${pattern}`, {
+  const scanRes = await axios.get(`${REDIS_URL}/scan/0/${encodeURIComponent(pattern)}`, {
+    headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
+  })
+
+  const keys = scanRes.data.result?.[1] ?? []
+  if (keys.length === 0) return
+
+  const keyPath = keys.map(k => encodeURIComponent(k)).join("/")
+  await axios.delete(`${REDIS_URL}/del/${keyPath}`, null, {
     headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
   })
 }

@@ -150,11 +150,12 @@ exports.createProfile = async (req, res) => {
 
     const newProfile = await Profile.create(profileData);
 
+    await redisDelete("profiles:*").catch(() => {})
+
     res.status(201).json({
       status: "success",
       data: newProfile,
     });
-    await redisDelete("profiles:*").catch(() => {})
   } catch (error) {
     console.error("FULL ERROR:", error);
     console.error("ERROR STACK:", error.stack);
@@ -355,8 +356,8 @@ exports.deleteProfile = async (req, res) => {
       });
     }
 
-    res.status(204).send();
     await redisDelete("profiles:*").catch(() => {})
+    res.status(204).send();
   } catch (error) {
     res.status(500).json({
       status: "error",
@@ -759,6 +760,8 @@ exports.uploadProfiles = async (req, res) => {
       }
     }
     await processBatch()
+
+    await redisDelete("profiles:*").catch(() => {})
 
     res.status(200).json({
       status: "success",
