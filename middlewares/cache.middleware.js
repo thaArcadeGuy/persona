@@ -29,7 +29,7 @@ async function redisDelete(pattern) {
   if (keys.length === 0) return
 
   const keyPath = keys.map(k => encodeURIComponent(k)).join("/")
-  await axios.delete(`${REDIS_URL}/del/${keyPath}`, null, {
+  await axios.delete(`${REDIS_URL}/del/${keyPath}`, {
     headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
   })
 }
@@ -39,7 +39,7 @@ const cacheMiddleware = (duration = 60) => {
     if (req.method !== "GET") return next()
 
     const normalized = normalizeQuery(req.query)
-    const key = buildCacheKey(normalized)
+    const key = `${req.baseUrl || ""}${req.path}:${buildCacheKey(normalized)}`
 
     try {
       const cached = await redisGet(key)
