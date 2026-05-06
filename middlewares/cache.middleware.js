@@ -6,7 +6,7 @@ const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL
 const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN
 
 async function redisGet(key) {
-  const res = await axios.get(`${REDIS_URL}/get/${key}`, {
+  const res = await axios.get(`${REDIS_URL}/get/${encodeURIComponent(key)}`, {
     headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
   })
 
@@ -14,7 +14,7 @@ async function redisGet(key) {
 }
 
 async function redisSet(key, value, ttl = 60) {
-  await axios.post(`${REDIS_URL}/set/${key}`, value, {
+  await axios.post(`${REDIS_URL}/set/${encodeURIComponent(key)}`, value, {
     headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
     params: { EX: ttl }
   })
