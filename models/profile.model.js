@@ -9,12 +9,11 @@ const profileSchema = new mongoose.Schema(
     },
     name: { 
       type: String,
-      index: true,
-      unique: true
+      unique: true,
+      required: true
     },
     gender: { 
-      type: String, 
-      index: true 
+      type: String 
     },
     gender_probability: { 
       type: Number 
@@ -23,12 +22,10 @@ const profileSchema = new mongoose.Schema(
       type: Number 
     },
     age_group: { 
-      type: String, 
-      index: true 
+      type: String
     },
     country_id: { 
-      type: String, 
-      index: true 
+      type: String
     },
     country_name: {
       type: String
@@ -53,5 +50,13 @@ const profileSchema = new mongoose.Schema(
     },
   },
 );
+
+profileSchema.index({ gender: 1, country_id: 1 })
+profileSchema.index({ age_group: 1, country_id: 1 })
+profileSchema.index({ gender: 1, country_id: 1, age: 1 })
+
+profileSchema.index({ age: 1 })
+profileSchema.index({ created_at: -1 })
+profileSchema.index({ gender_probability: 1 })
 
 module.exports = mongoose.model("Profile", profileSchema);
