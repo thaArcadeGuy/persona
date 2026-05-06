@@ -19,9 +19,11 @@ function normalizeQuery(filters) {
     if (val === undefined || val === null || val === "") continue
 
     if (NUMERIC_KEYS.includes(key)) {
-      normalized[key] = Number(val)
+      const n = Number(val)
+      if (!Number.isNaN(n)) normalized[key] = n
     } else if (FLOAT_KEYS.includes(key)) {
-      normalized[key] = parseFloat(val)
+      const f = parseFloat(val)
+      if (!Number.isNaN(f)) normalized[key] = f
     } else if (typeof val === "string") {
       normalized[key] = val.toLowerCase().trim()
     } else {
