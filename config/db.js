@@ -8,8 +8,11 @@ exports.connectDB = async () => {
 
   try {
     await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 5000, 
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000, 
     })
+    await mongoose.set('bufferCommands', false)
     console.log("Database connection was successful")
   } catch (error) {
     console.error("Error connecting to database:", error.message)
