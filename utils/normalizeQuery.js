@@ -20,10 +20,10 @@ function normalizeQuery(filters) {
 
     if (NUMERIC_KEYS.includes(key)) {
       const n = Number(val)
-      if (!Number.isNaN(n)) normalized[key] = n
+      if (Number.isFinite(n)) normalized[key] = n
     } else if (FLOAT_KEYS.includes(key)) {
       const f = parseFloat(val)
-      if (!Number.isNaN(f)) normalized[key] = f
+      if (Number.isFinite(f)) normalized[key] = f
     } else if (typeof val === "string") {
       normalized[key] = val.toLowerCase().trim()
     } else {
