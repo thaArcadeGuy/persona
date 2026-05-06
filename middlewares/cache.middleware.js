@@ -1,6 +1,7 @@
 const axios = require("axios")
 const crypto = require("node:crypto")
 require("dotenv").config()
+const normalizeFilter = require("../utils/normalizeFilter")
 
 const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL
 const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN
@@ -24,13 +25,7 @@ const cacheMiddleware = (duration = 60) => {
   return async (req, res, next) => {
     if (req.method !== "GET") return next()
 
-    const normalizedQuery = Object.keys(req.query)
-      .sort()
-      .reduce((acc, k) => {
-        const val = req.query[k]
-        acc[k] = typeof val === "string" ? val.toLowerCase() : val
-        return acc
-      }, {})
+    const normalizedQuery = normalizeFilter(req.query)
 
     const keyHash = crypto
       .createHash("sha256")
