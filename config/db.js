@@ -6,9 +6,13 @@ const mongoUri = process.env.MONGO_URI
 exports.connectDB = async () => {
   if (mongoose.connection.readyState === 1) return
 
+  mongoose.set('bufferCommands', false)
+  
   try {
     await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 5000, 
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000, 
     })
     console.log("Database connection was successful")
   } catch (error) {
