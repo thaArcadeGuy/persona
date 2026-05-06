@@ -2,6 +2,8 @@ const axios = require("axios")
 const Profile = require("../models/profile.model")
 const parseNLQ = require("../utils/queryParser")
 const { redisDelete } = require("../middlewares/cache.middleware")
+const fs = require("fs")
+const csv = require("csv-parser")
 
 
 exports.createProfile = async (req, res) => {
@@ -617,5 +619,161 @@ exports.exportProfiles = async (req, res) => {
     } else {
       res.end()
     } 
+  }
+}
+
+exports.uploadProfiles = async (req, res) => {
+  const filePath = req.file?.path
+
+  if (!filePath) {
+    return res.status(400).json({
+      status: "error",
+      message: "CSV file is required"
+    })
+  }
+
+  let total_rows = 0
+  let inserted = 0
+  let skipped = 0
+
+  const reasons = {
+    duplicate_name: 0,
+    invalid_age: 0,
+    missing_fields: 0,
+    invalid_gender: 0,
+    malformed_row: 0
+  }
+
+  const BATCH_SIZE = 1000
+  let batch = []
+
+  const allowedGenders = ["male", "female"]
+
+  const processBatch = async () => {
+    if (batch.length === 0) return
+
+    const names = batch.map(r => r.name)
+
+    const existing = await Profile.find({ name: { $in: names } }).select("name")
+    const existingSet = new Set(existing.map(d => d.name))
+    const seen = new Set()
+
+    const validDocs = []
+
+    for (const row of batch) {
+      if (seen.has(row.name)) {
+        skipped++
+        reasons.duplicate_name++
+        continue
+      }
+
+      seen.add(row.name)
+
+      if (existingSet.has(row.name)) {
+        skipped++
+        reasons.duplicate_name++
+        continue
+      }
+      validDocs.push(row)
+    }
+
+    if (validDocs.length > 0) {
+      try {
+        const result = await Profile.insertMany(validDocs, { ordered: false })
+        inserted += result.length
+      } catch (error) {
+        if (error.insertedDocs) {
+          inserted += error.insertedDocs.length
+        }
+
+        const failedCount = validDocs.length - (error.insertedDocs?.length || 0)
+        if (failedCount > 0) {
+          console.warn(`${failedCount} docs failed insertMany unexpectedly`)
+        }
+        skipped += failedCount
+      }
+    }
+    batch = []
+  }
+
+  try {
+    const stream = fs.createReadStream(filePath).pipe(csv())
+
+    for await (const row of stream) {
+      total_rows++
+
+      try {
+        const name = row.name?.toLowerCase()?.trim()
+        const gender = row.gender?.toLowerCase()?.trim()
+        const age = Number(row.age)
+
+        if (!name) {
+          skipped++
+          reasons.missing_fields++
+          continue
+        }
+
+        if (gender && !allowedGenders.includes(gender)) {
+          skipped++
+          reasons.invalid_gender++
+          continue
+        }
+
+        if (row.age && (isNaN(age) || age < 0)) {
+          skipped++
+          reasons.invalid_age++
+          continue
+        }
+
+        const validAge = row.age !== "" && row.age !== undefined && !isNaN(age) && age >= 0
+        const age_group =  validAge
+          ? age <= 12 ? "child"
+          : age <= 19 ? "teenager"
+          : age <= 59 ? "adult"
+          : "senior"
+          : null
+
+        const genderProb = Number(row.gender_probability);
+        const validGenderProb = !isNaN(genderProb) && genderProb >= 0 && genderProb <= 1;
+
+        const countryProb = Number(row.country_probability);
+        const validCountryProb = !isNaN(countryProb) && countryProb >= 0 && countryProb <= 1;
+
+        batch.push({
+          name,
+          gender: gender || null,
+          gender_probability: validGenderProb ? genderProb : null, 
+          age: validAge ? age : null,
+          age_group,
+          country_id: row.country_id?.toUpperCase() || null,
+          country_name: row.country_name || null,
+          country_probability: validCountryProb ? countryProb : null
+        })
+
+        if (batch.length >= BATCH_SIZE) {
+          await processBatch()
+        }
+      } catch (error) {
+        skipped++
+        reasons.malformed_row++
+      }
+    }
+    await processBatch()
+
+    res.status(200).json({
+      status: "success",
+      total_rows,
+      inserted,
+      skipped,
+      reasons
+    })
+  } catch (error) {
+    console.error("Upload failed:", error.message)
+    res.status(500).json({
+      status: "error",
+      message: "Failed to upload file"
+    })
+  } finally {
+    fs.unlink(filePath, () => {})
   }
 }
