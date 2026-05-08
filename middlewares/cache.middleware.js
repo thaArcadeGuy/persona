@@ -21,17 +21,22 @@ async function redisSet(key, value, ttl = 60) {
 }
 
 async function redisDelete(pattern) {
-  const scanRes = await axios.get(`${REDIS_URL}/scan/0/${encodeURIComponent(pattern)}`, {
-    headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
-  })
+  let cursor = 0
+  do {
+    const scanRes = await axios.get(
+      `${REDIS_URL}/scan/${cursor}/${encodeURIComponent(pattern)}/100`, 
+      { headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
+    })
 
-  const keys = scanRes.data.result?.[1] ?? []
-  if (keys.length === 0) return
-
-  const keyPath = keys.map(k => encodeURIComponent(k)).join("/")
-  await axios.delete(`${REDIS_URL}/del/${keyPath}`, {
-    headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
-  })
+    cursor = scanRes.data.result?.[0] ?? 0
+    const keys = scanRes.data.result?.[1] ?? []
+    if (keys.length > 0) {
+      const keyPath = keys.map(k => encodeURIComponent(k)).join("/")
+      await axios.delete(`${REDIS_URL}/del/${keyPath}`, {
+        headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
+      })
+    }
+  } while (cursor !== 0 && cursor !== "0")
 }
 
 const cacheMiddleware = (duration = 60) => {

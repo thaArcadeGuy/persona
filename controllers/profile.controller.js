@@ -4,6 +4,7 @@ const parseNLQ = require("../utils/queryParser")
 const { redisDelete } = require("../middlewares/cache.middleware")
 const fs = require("fs")
 const csv = require("csv-parser")
+const { Readable } = require("stream")
 
 
 exports.createProfile = async (req, res) => {
@@ -624,13 +625,8 @@ exports.exportProfiles = async (req, res) => {
 }
 
 exports.uploadProfiles = async (req, res) => {
-  const filePath = req.file?.path
-
-  if (!filePath) {
-    return res.status(400).json({
-      status: "error",
-      message: "CSV file is required"
-    })
+  if (!req.file?.buffer) {
+    return res.status(400).json({ status: "error", message: "CSV file is required" })
   }
 
   let total_rows = 0
@@ -698,7 +694,7 @@ exports.uploadProfiles = async (req, res) => {
   }
 
   try {
-    const stream = fs.createReadStream(filePath).pipe(csv())
+    const stream = Readable.from(req.file.buffer).pipe(csv())
 
     for await (const row of stream) {
       total_rows++
@@ -776,7 +772,5 @@ exports.uploadProfiles = async (req, res) => {
       status: "error",
       message: "Failed to upload file"
     })
-  } finally {
-    fs.unlink(filePath, () => {})
-  }
+  } 
 }

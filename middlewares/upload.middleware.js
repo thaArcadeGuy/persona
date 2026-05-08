@@ -1,13 +1,6 @@
 const multer = require("multer")
-const path = require("node:path")
 
-const storage = multer.diskStorage({
-  destination: path.join(__dirname, "..", "uploads"),
-  filename: (req, file, cb) => {
-    const safeName = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, "_")
-    cb(null, `${Date.now()}-${safeName}`)
-  }
-})
+const storage = multer.memoryStorage()
 
 const upload = multer({
   storage,
@@ -18,7 +11,31 @@ const upload = multer({
       cb(new Error("Only CSV files are allowed"))
     }
   },
-  limits: { fileSize: 50 * 1024 * 1024 }
+  limits: { fileSize: 100 * 1024 * 1024 }
 })
 
-module.exports = upload
+const uploadMiddleware = (req, res, next) => {
+  upload.single("file")(req, res, (error) => {
+    if (error instanceof multer.MulterError) {
+      if (error.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          status: "error",
+          message: "File too large. Maximum size is 100MB"
+        })
+      }
+      return res.status(400).json({
+        status: "error",
+        message: error.message
+      })
+    }
+    if (error) {
+      return res.status(400).json({
+        status: "error",
+        message: error.message
+      })
+    }
+    next()
+   })
+}
+
+module.exports = uploadMiddleware
